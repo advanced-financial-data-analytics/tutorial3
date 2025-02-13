@@ -1,16 +1,18 @@
 ---
-title: "Tutorial 3: Smoothing and Forecasting in Financial Time Series"
+title: "Tutorial 3"
+subtitle: "Smoothing and Forecasting in Financial Time Series"
 author: "Barry Quinn"
 date: "Last updated: `r Sys.Date()`"
-repo-url: https://github.com/advanced-financial-data-analytics/tutorial3
 repo-actions: [source]
 format:
   html:
     code-fold: true
+    embed-resources: true
     toc: true
     toc-depth: 3
     number-sections: true
-    css: mycssblend.css
+    code-tools:
+      source: https://github.com/advanced-financial-data-analytics/tutorial3
 editor: visual
 execute:
   echo: true
