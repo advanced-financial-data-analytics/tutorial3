@@ -3108,6 +3108,7 @@ vertical-align: -.125em;
   <ul class="collapse">
   <li><a href="#creating-a-time-series-object" id="toc-creating-a-time-series-object" class="nav-link" data-scroll-target="#creating-a-time-series-object"><span class="header-section-number">4.5.1</span> Creating a Time-Series Object</a></li>
   <li><a href="#arima-model" id="toc-arima-model" class="nav-link" data-scroll-target="#arima-model"><span class="header-section-number">4.5.2</span> ARIMA Model</a></li>
+  <li><a href="#forecasting" id="toc-forecasting" class="nav-link" data-scroll-target="#forecasting"><span class="header-section-number">4.5.3</span> Forecasting</a></li>
   </ul></li>
   </ul></li>
   <li><a href="#exercises" id="toc-exercises" class="nav-link" data-scroll-target="#exercises"><span class="header-section-number">5</span> Exercises</a></li>
@@ -3234,6 +3235,7 @@ vertical-align: -.125em;
 <h1 data-number="3"><span class="header-section-number">3</span> Smoothing Methods</h1>
 <section id="simple-moving-average-sma" class="level2" data-number="3.1">
 <h2 data-number="3.1" class="anchored" data-anchor-id="simple-moving-average-sma"><span class="header-section-number">3.1</span> Simple Moving Average (SMA)</h2>
+<p>The Simple Moving Average (SMA) calculates the arithmetic mean of prices over a specified window (n days). Each point gets equal weight (1/n), making it the most basic smoothing technique. While simple, it has two key economic implications: - It treats recent and old prices equally, which may not reflect market efficiency - The lag is approximately (n+1)/2 days, making it a lagging indicator - Commonly used windows are 20 days (monthly), 50 days (quarterly), and 200 days (yearly)</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -3265,6 +3267,7 @@ vertical-align: -.125em;
 </section>
 <section id="exponential-moving-average-ema" class="level2" data-number="3.2">
 <h2 data-number="3.2" class="anchored" data-anchor-id="exponential-moving-average-ema"><span class="header-section-number">3.2</span> Exponential Moving Average (EMA)</h2>
+<p>The EMA assigns exponentially decreasing weights to older observations, giving more importance to recent prices. The smoothing factor α = 2/(n+1) determines the rate of decay: - More responsive to recent price changes than SMA, better reflecting market efficiency - Reduces lag while maintaining smoothing properties - The effective “memory” of the indicator extends infinitely but with rapidly diminishing weights</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -3296,6 +3299,7 @@ vertical-align: -.125em;
 <h1 data-number="4"><span class="header-section-number">4</span> Exercise: Compare the lag and responsiveness of SMA vs. EMA.</h1>
 <section id="weighted-moving-average-wma" class="level2" data-number="4.1">
 <h2 data-number="4.1" class="anchored" data-anchor-id="weighted-moving-average-wma"><span class="header-section-number">4.1</span> Weighted Moving Average (WMA)</h2>
+<p>The WMA applies linear weights to prices, with recent observations getting higher weights. Unlike EMA’s exponential decay: - Provides a middle ground between SMA and EMA in terms of responsiveness - Weights typically decline arithmetically (e.g., 5,4,3,2,1) - Has a finite memory determined by the window size - Often used in technical analysis for price momentum studies</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -3327,6 +3331,7 @@ vertical-align: -.125em;
 </section>
 <section id="savitzky-golay-filter" class="level2" data-number="4.2">
 <h2 data-number="4.2" class="anchored" data-anchor-id="savitzky-golay-filter"><span class="header-section-number">4.2</span> Savitzky-Golay Filter</h2>
+<p>The Savitzky-Golay filter fits a polynomial of degree p to n points around each data point using least squares. Unlike moving averages: - Preserves higher moments (peaks, valleys) better than traditional moving averages - Particularly useful for identifying trend reversals in price movements - The polynomial degree p controls smoothness vs. feature preservation - Often used in high-frequency trading for noise reduction</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -3355,6 +3360,7 @@ vertical-align: -.125em;
 </section>
 <section id="lowess-smoothing" class="level2" data-number="4.3">
 <h2 data-number="4.3" class="anchored" data-anchor-id="lowess-smoothing"><span class="header-section-number">4.3</span> Lowess Smoothing</h2>
+<p>Locally Weighted Scatterplot Smoothing (LOWESS) fits a polynomial regression to local neighborhoods of points: - Adapts to local price volatility better than global smoothers - The bandwidth parameter f controls the size of the local neighborhood - Robust to outliers through iterative reweighting - Particularly useful for identifying long-term market trends while adapting to changing volatility regimes</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -3388,6 +3394,7 @@ vertical-align: -.125em;
 </section>
 <section id="kalman-filter" class="level2" data-number="4.4">
 <h2 data-number="4.4" class="anchored" data-anchor-id="kalman-filter"><span class="header-section-number">4.4</span> Kalman Filter</h2>
+<p>The Kalman filter is a recursive Bayesian estimator that combines a prediction model with noisy measurements: - Optimal for linear systems with Gaussian noise - Adapts dynamically to changing market volatility - Parameters dV (measurement noise) and dW (process noise) control smoothing strength - Particularly useful for real-time trading as it provides both filtered estimates and prediction uncertainties</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -3418,8 +3425,11 @@ vertical-align: -.125em;
 </section>
 <section id="arima-forecast" class="level2" data-number="4.5">
 <h2 data-number="4.5" class="anchored" data-anchor-id="arima-forecast"><span class="header-section-number">4.5</span> ARIMA Forecast</h2>
+<p>ARIMA (Autoregressive Integrated Moving Average) models combine three components: - AR(p): Autoregressive component capturing price dependencies - I(d): Integration/differencing for stationarity - MA(q): Moving average component for error structure</p>
+<p>The model is denoted as ARIMA(p,d,q) where: - p: Number of lagged returns affecting current return - d: Number of times we difference prices to achieve stationarity - q: Number of lagged error terms in the model</p>
 <section id="creating-a-time-series-object" class="level3" data-number="4.5.1">
 <h3 data-number="4.5.1" class="anchored" data-anchor-id="creating-a-time-series-object"><span class="header-section-number">4.5.1</span> Creating a Time-Series Object</h3>
+<p>We create a time series object with 252 trading days per year:</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -3429,6 +3439,7 @@ vertical-align: -.125em;
 </section>
 <section id="arima-model" class="level3" data-number="4.5.2">
 <h3 data-number="4.5.2" class="anchored" data-anchor-id="arima-model"><span class="header-section-number">4.5.2</span> ARIMA Model</h3>
+<p>The auto.arima() function automatically selects optimal p, d, q values by minimizing AIC/BIC: - Tests for stationarity and determines appropriate differencing - Searches over possible AR and MA orders - Includes drift terms if beneficial - Uses maximum likelihood estimation for parameters</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -3449,6 +3460,10 @@ Training set 0.0726423 2.790626 2.074084 0.04565066 1.664307 0.06149399
 Training set -0.06167857</code></pre>
 </div>
 </div>
+</section>
+<section id="forecasting" class="level3" data-number="4.5.3">
+<h3 data-number="4.5.3" class="anchored" data-anchor-id="forecasting"><span class="header-section-number">4.5.3</span> Forecasting</h3>
+<p>We generate 20-day ahead forecasts with prediction intervals: - Point forecasts are conditional expectations - Intervals widen with horizon, reflecting increasing uncertainty - Blue = point forecast - Dark gray = 80% prediction interval - Light gray = 95% prediction interval</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>

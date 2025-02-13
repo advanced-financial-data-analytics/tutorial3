@@ -36,7 +36,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 # Introduction
 
-In this tutorial, you’ll learn to:
+In this tutorial, you'll learn to:
 
 1.  Retrieve and preprocess financial time-series data.
 2.  Apply smoothing techniques: Moving Averages, Savitzky-Golay, Lowess, and Kalman filter.
@@ -90,6 +90,11 @@ ggplot(aapl_df, aes(x = date, y = price)) +
 
 ## Simple Moving Average (SMA)
 
+The Simple Moving Average (SMA) calculates the arithmetic mean of prices over a specified window (n days). Each point gets equal weight (1/n), making it the most basic smoothing technique. While simple, it has two key economic implications:
+- It treats recent and old prices equally, which may not reflect market efficiency
+- The lag is approximately (n+1)/2 days, making it a lagging indicator
+- Commonly used windows are 20 days (monthly), 50 days (quarterly), and 200 days (yearly)
+
 ```{r}
 sma_20 <- SMA(aapl_prices, n = 20)
 
@@ -110,6 +115,11 @@ ggplot(df_sma, aes(x=date)) +
 
 ## Exponential Moving Average (EMA)
 
+The EMA assigns exponentially decreasing weights to older observations, giving more importance to recent prices. The smoothing factor α = 2/(n+1) determines the rate of decay:
+- More responsive to recent price changes than SMA, better reflecting market efficiency
+- Reduces lag while maintaining smoothing properties
+- The effective "memory" of the indicator extends infinitely but with rapidly diminishing weights
+
 ```{r}
 ema_20 <- EMA(aapl_prices, n=20)
 
@@ -129,6 +139,12 @@ ggplot(df_ema, aes(x=date)) +
 # Exercise: Compare the lag and responsiveness of SMA vs. EMA.
 
 ## Weighted Moving Average (WMA)
+
+The WMA applies linear weights to prices, with recent observations getting higher weights. Unlike EMA's exponential decay:
+- Provides a middle ground between SMA and EMA in terms of responsiveness
+- Weights typically decline arithmetically (e.g., 5,4,3,2,1)
+- Has a finite memory determined by the window size
+- Often used in technical analysis for price momentum studies
 
 ```{r}
 weights <- c(1,2,3,4,5)
@@ -151,6 +167,12 @@ ggplot(df_wma, aes(x=date)) +
 
 ## Savitzky-Golay Filter
 
+The Savitzky-Golay filter fits a polynomial of degree p to n points around each data point using least squares. Unlike moving averages:
+- Preserves higher moments (peaks, valleys) better than traditional moving averages
+- Particularly useful for identifying trend reversals in price movements
+- The polynomial degree p controls smoothness vs. feature preservation
+- Often used in high-frequency trading for noise reduction
+
 ```{r}
 sg_filter <- sgolayfilt(as.numeric(aapl_prices), p=3, n=21)
 
@@ -168,6 +190,12 @@ ggplot(df_sg, aes(x=date)) +
 ```
 
 ## Lowess Smoothing
+
+Locally Weighted Scatterplot Smoothing (LOWESS) fits a polynomial regression to local neighborhoods of points:
+- Adapts to local price volatility better than global smoothers
+- The bandwidth parameter f controls the size of the local neighborhood
+- Robust to outliers through iterative reweighting
+- Particularly useful for identifying long-term market trends while adapting to changing volatility regimes
 
 ```{r}
 df_lo_in <- tibble(
@@ -192,6 +220,12 @@ ggplot(df_lo, aes(x=date)) +
 
 ## Kalman Filter
 
+The Kalman filter is a recursive Bayesian estimator that combines a prediction model with noisy measurements:
+- Optimal for linear systems with Gaussian noise
+- Adapts dynamically to changing market volatility
+- Parameters dV (measurement noise) and dW (process noise) control smoothing strength
+- Particularly useful for real-time trading as it provides both filtered estimates and prediction uncertainties
+
 ```{r}
 mod_poly <- dlmModPoly(order=1, dV=15100, dW=1470)
 kf_smooth <- dlmSmooth(as.numeric(aapl_prices), mod_poly)
@@ -212,7 +246,19 @@ ggplot(df_kf, aes(x=date)) +
 
 ## ARIMA Forecast
 
+ARIMA (Autoregressive Integrated Moving Average) models combine three components:
+- AR(p): Autoregressive component capturing price dependencies
+- I(d): Integration/differencing for stationarity
+- MA(q): Moving average component for error structure
+
+The model is denoted as ARIMA(p,d,q) where:
+- p: Number of lagged returns affecting current return
+- d: Number of times we difference prices to achieve stationarity
+- q: Number of lagged error terms in the model
+
 ### Creating a Time-Series Object
+
+We create a time series object with 252 trading days per year:
 
 ```{r}
 aapl_ts <- ts(as.numeric(aapl_prices), frequency = 252, start = c(2020, as.numeric(format(start(aapl_prices), "%j"))))
@@ -220,10 +266,25 @@ aapl_ts <- ts(as.numeric(aapl_prices), frequency = 252, start = c(2020, as.numer
 
 ### ARIMA Model
 
+The auto.arima() function automatically selects optimal p, d, q values by minimizing AIC/BIC:
+- Tests for stationarity and determines appropriate differencing
+- Searches over possible AR and MA orders
+- Includes drift terms if beneficial
+- Uses maximum likelihood estimation for parameters
+
 ```{r}
 fit_arima <- auto.arima(aapl_ts)
 summary(fit_arima)
 ```
+
+### Forecasting
+
+We generate 20-day ahead forecasts with prediction intervals:
+- Point forecasts are conditional expectations
+- Intervals widen with horizon, reflecting increasing uncertainty
+- Blue = point forecast
+- Dark gray = 80% prediction interval
+- Light gray = 95% prediction interval
 
 ```{r}
 future_fc <- forecast(fit_arima, h=20)
