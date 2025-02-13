@@ -1,0 +1,253 @@
+---
+title: "Tutorial 2: Smoothing and Forecasting in Financial Time Series"
+author: "Barry Quinn"
+date: "Last updated: `r Sys.Date()`"
+---
+repo-url: https://github.com/username/repository-name
+repo-actions: [source]
+---
+
+format:
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    css: mycssblend.css
+editor: visual
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(tidyquant)
+library(TTR)       # Moving averages
+library(signal)    # Savitzky-Golay filter
+library(dlm)       # Kalman filter
+library(forecast)  # ARIMA
+library(tsfe)      # Optional dataset
+
+# Set global chunk options
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+In this tutorial, you’ll learn to:
+
+1.  Retrieve and preprocess financial time-series data.
+2.  Apply smoothing techniques: Moving Averages, Savitzky-Golay, Lowess, and Kalman filter.
+3.  Fit an ARIMA model for forecasting, understanding its limitations.
+
+We will use Apple Inc. (AAPL) daily adjusted closing prices from Yahoo Finance.
+
+Why Smoothing?
+
+-   Financial data is noisy with frequent fluctuations.
+-   Smoothing removes short-term noise and highlights trends.
+-   However, no smoothing method guarantees profitable signals in efficient markets.
+
+Why Forecasting?
+
+-   Financial price forecasting is difficult due to the random-walk hypothesis.
+-   ARIMA is a useful time-series modelling technique.
+
+# Data Setup
+
+## Retrieve AAPL data
+
+```{r}
+getSymbols("AAPL", from = "2020-01-01", to = "2022-12-31", auto.assign = TRUE)
+```
+
+## Extract adjusted closing prices
+
+```{r}
+aapl_prices <- Cl(AAPL)
+
+# View data
+head(aapl_prices)
+```
+
+## Convert to tibble for ggplot
+
+```{r}
+aapl_df <- tibble(
+  date  = index(aapl_prices),
+  price = as.numeric(aapl_prices)
+)
+
+ggplot(aapl_df, aes(x = date, y = price)) +
+  geom_line(color="steelblue") +
+  labs(title="AAPL Adjusted Closing Prices", x=NULL, y="Price (USD)") +
+  theme_minimal()
+```
+
+# Smoothing Methods
+
+## Simple Moving Average (SMA)
+
+```{r}
+sma_20 <- SMA(aapl_prices, n = 20)
+
+df_sma <- tibble(
+  date  = index(aapl_prices),
+  price = as.numeric(aapl_prices),
+  sma20 = as.numeric(sma_20)
+)
+
+ggplot(df_sma, aes(x=date)) +
+  geom_line(aes(y=price), color="black") +
+  geom_line(aes(y=sma20), color="red", size=0.9) +
+  labs(title="Simple Moving Average (SMA) - 20 Day", x=NULL, y="Price (USD)") +
+  theme_minimal()
+```
+
+> Question: How does the SMA compare in volatility reduction?
+
+## Exponential Moving Average (EMA)
+
+```{r}
+ema_20 <- EMA(aapl_prices, n=20)
+
+df_ema <- tibble(
+  date  = index(aapl_prices),
+  price = as.numeric(aapl_prices),
+  ema20 = as.numeric(ema_20)
+)
+
+ggplot(df_ema, aes(x=date)) +
+  geom_line(aes(y=price), color="black") +
+  geom_line(aes(y=ema20), color="blue", size=0.9) +
+  labs(title="Exponential Moving Average (EMA) - 20 Day", x=NULL, y="Price (USD)") +
+  theme_minimal()
+```
+
+# Exercise: Compare the lag and responsiveness of SMA vs. EMA.
+
+## Weighted Moving Average (WMA)
+
+```{r}
+weights <- c(1,2,3,4,5)
+weights <- weights/sum(weights)
+
+wma_5 <- WMA(aapl_prices, n=5, wts=weights)
+
+df_wma <- tibble(
+  date   = index(aapl_prices),
+  price  = as.numeric(aapl_prices),
+  wma_5  = as.numeric(wma_5)
+)
+
+ggplot(df_wma, aes(x=date)) +
+  geom_line(aes(y=price), color="black") +
+  geom_line(aes(y=wma_5), color="green", size=0.9) +
+  labs(title="Weighted Moving Average (5-Day)", x=NULL, y="Price (USD)") +
+  theme_minimal()
+```
+
+## Savitzky-Golay Filter
+
+```{r}
+sg_filter <- sgolayfilt(as.numeric(aapl_prices), p=3, n=21)
+
+df_sg <- tibble(
+  date  = index(aapl_prices),
+  price = as.numeric(aapl_prices),
+  sg    = as.numeric(sg_filter)
+)
+
+ggplot(df_sg, aes(x=date)) +
+  geom_line(aes(y=price), color="black") +
+  geom_line(aes(y=sg), color="purple", size=0.9) +
+  labs(title="Savitzky-Golay Filter (p=3, n=21)", x=NULL, y="Price (USD)") +
+  theme_minimal()
+```
+
+## Lowess Smoothing
+
+```{r}
+df_lo_in <- tibble(
+  x  = as.numeric(index(aapl_prices)),
+  y  = as.numeric(aapl_prices)
+)
+
+lo_out <- lowess(df_lo_in$x, df_lo_in$y, f=0.1)
+
+df_lo <- tibble(
+  date  = as.Date(df_lo_in$x, origin="1970-01-01"),
+  price = df_lo_in$y,
+  lo    = lo_out$y
+)
+
+ggplot(df_lo, aes(x=date)) +
+  geom_line(aes(y=price), color="black") +
+  geom_line(aes(y=lo), color="orange", size=0.9) +
+  labs(title="Lowess Smoothing (f=0.1)", x=NULL, y="Price (USD)") +
+  theme_minimal()
+```
+
+## Kalman Filter
+
+```{r}
+mod_poly <- dlmModPoly(order=1, dV=15100, dW=1470)
+kf_smooth <- dlmSmooth(as.numeric(aapl_prices), mod_poly)
+
+df_kf <- tibble(
+  date    = index(aapl_prices),
+  price   = as.numeric(aapl_prices),
+  kalman  = dropFirst(kf_smooth$s)
+)
+
+ggplot(df_kf, aes(x=date)) +
+  geom_line(aes(y=price, color="Price"), size=0.7) +
+  geom_line(aes(y=kalman, color="blue"), size=0.9) +
+  labs(title="Kalman Filter Smoothing", x=NULL, y="Price (USD)") +
+  scale_color_manual(name="", values=c("Price"="black","Kalman"="blue")) +
+  theme_minimal()
+```
+
+## ARIMA Forecast
+
+### Creating a Time-Series Object
+
+```{r}
+aapl_ts <- ts(as.numeric(aapl_prices), frequency = 252, start = c(2020, as.numeric(format(start(aapl_prices), "%j"))))
+```
+
+### ARIMA Model
+
+```{r}
+fit_arima <- auto.arima(aapl_ts)
+summary(fit_arima)
+```
+
+```{r}
+future_fc <- forecast(fit_arima, h=20)
+
+autoplot(future_fc) +
+  labs(title="ARIMA Forecast: AAPL", x="Trading Days", y="Price (USD)") +
+  theme_minimal()
+```
+
+# Exercises
+
+1.  Compare smoothing methods:
+
+-   Which method is fastest at reacting to sudden price jumps?
+-   Which is slowest and smoothest?
+
+2.  Experiment with ARIMA forecasts:
+
+-   Does it revert to a drift term?
+-   How does adjusting the time window affect the fit?
+
+# Wrap-Up
+
+-   Financial prices are noisy; smoothing highlights trends but does not create profitable signals.
+-   ARIMA models are useful but often resemble random-walk structures.
+-   Advanced methods (GARCH, ML) may offer better predictive power.
